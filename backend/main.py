@@ -4,6 +4,7 @@ import uuid
 import json
 import asyncio
 from dotenv import load_dotenv
+from contextlib import asynccontextmanager
 
 # Ensure backend directory is in python path to support Model, Analysis, RagEngine imports
 backend_dir = os.path.dirname(os.path.abspath(__file__))
@@ -14,7 +15,7 @@ sys.path.append(os.path.dirname(backend_dir))
 # Load environment variables
 load_dotenv(os.path.join(backend_dir, ".env"))
 
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from backend.database import (
@@ -25,12 +26,18 @@ from backend.database import (
     get_execution_results,
     update_execution_minimized,
     update_execution_status,
-    get_chunking_metrics
+    get_chunking_metrics,
+    delete_execution_run
 )
 from backend.rag_service import train_document_stream, search_guideline_chunks
 from backend.analyzer_service import run_requirements_analysis_job, ACTIVE_JOBS
 
-app = FastAPI(title="ReQualiTrace Studio Backend")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    yield
+
+app = FastAPI(title="AARAM Backend", lifespan=lifespan)
 
 # Enable CORS for Angular frontend
 app.add_middleware(
@@ -41,9 +48,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.on_event("startup")
-def startup_db():
-    init_db()
+@app.websocket("/api/ws/status")
+async def websocket_status(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        pass
 
 @app.post("/api/guidelines/upload")
 async def upload_guidelines(
@@ -217,6 +229,12 @@ async def minimize_run(run_id: str, minimized: bool = Form(...)):
     val = 1 if minimized else 0
     update_execution_minimized(run_id, val)
     return {"status": "success", "run_id": run_id, "minimized": minimized}
+
+@app.delete("/api/analysis/{run_id}")
+async def delete_run(run_id: str):
+    """Deletes an execution run history and its results from the database."""
+    delete_execution_run(run_id)
+    return {"status": "success", "run_id": run_id}
 
 if __name__ == "__main__":
     import uvicorn

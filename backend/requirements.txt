@@ -9,3 +9,4 @@ openpyxl
 pymupdf
 pymupdf4llm
 python-multipart
+websockets

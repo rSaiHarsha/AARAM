@@ -300,7 +300,7 @@ def analyze_quality(
         llm=llm,
         rag=rag,
         rag_context=rules_context,
-        selected_collections="requalitrace_guidelines",
+        selected_collections="aaram_guidelines",
         is_strict_json=is_strict_json
     )
     
@@ -322,7 +322,7 @@ def analyze_quality(
                 llm=llm,
                 rag=rag,
                 rag_context=rules_context,
-                selected_collections="requalitrace_guidelines",
+                selected_collections="aaram_guidelines",
                 feedback_rule=failed_rule_str,
                 feedback_rationale=res.get("Rationale")
             )
@@ -445,7 +445,7 @@ async def run_requirements_analysis_job(
         if use_rag and req_text:
             try:
                 # Query RAGEngine
-                rules_context = rag_engine.query(req_text, collection_name="requalitrace_guidelines", top_k=2)
+                rules_context = rag_engine.query(req_text, collection_name="aaram_guidelines", top_k=2)
             except Exception as e:
                 print(f"RAG rules search failed: {e}")
                 
