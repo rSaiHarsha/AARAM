@@ -27,16 +27,44 @@ export class ApiService {
     return this.http.get(`${this.baseUrl}/api/rag/metrics`);
   }
 
-  searchRag(query: string, limit: number = 5): Observable<any[]> {
+  searchRag(query: string, limit: number = 5, collectionName: string = 'requalitrace_guidelines'): Observable<any[]> {
     return this.http.get<any[]>(`${this.baseUrl}/api/rag/search`, {
-      params: { query, limit: limit.toString() }
+      params: { 
+        query, 
+        limit: limit.toString(),
+        collection_name: collectionName
+      }
     });
   }
 
-  trainRAG(file: File): Observable<any> {
+  getRagCollections(): Observable<string[]> {
+    return this.http.get<string[]>(`${this.baseUrl}/api/rag/collections`);
+  }
+
+  inspectPdf(file: File): Observable<{ pages: number }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<{ pages: number }>(`${this.baseUrl}/api/rag/inspect-pdf`, formData);
+  }
+
+  trainRAG(
+    file: File, 
+    collectionName: string = 'requalitrace_guidelines', 
+    collectionMode: string = 'create',
+    startPage?: number,
+    endPage?: number
+  ): Observable<any> {
     return new Observable(subscriber => {
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('collection_name', collectionName);
+      formData.append('collection_mode', collectionMode);
+      if (startPage !== undefined && startPage !== null) {
+        formData.append('start_page', startPage.toString());
+      }
+      if (endPage !== undefined && endPage !== null) {
+        formData.append('end_page', endPage.toString());
+      }
 
       fetch(`${this.baseUrl}/api/rag/train`, {
         method: 'POST',
@@ -90,7 +118,9 @@ export class ApiService {
     useRag: boolean,
     modelName: string,
     swe1File?: File,
-    swe2File?: File
+    swe2File?: File,
+    correctQuality: boolean = false,
+    correctTrace: boolean = false
   ): Observable<any> {
     const formData = new FormData();
     formData.append('run_type', runType);
@@ -99,6 +129,8 @@ export class ApiService {
     }
     formData.append('use_rag', useRag ? 'true' : 'false');
     formData.append('model_name', modelName);
+    formData.append('correct_quality', correctQuality ? 'true' : 'false');
+    formData.append('correct_trace', correctTrace ? 'true' : 'false');
     
     if (swe1File) {
       formData.append('swe1_file', swe1File);

@@ -3,9 +3,16 @@ import sys
 import uuid
 import json
 import asyncio
+from dotenv import load_dotenv
 
-# Ensure parent directory is in python path for absolute imports if executed directly
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Ensure backend directory is in python path to support Model, Analysis, RagEngine imports
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+if backend_dir not in sys.path:
+    sys.path.append(backend_dir)
+sys.path.append(os.path.dirname(backend_dir))
+
+# Load environment variables
+load_dotenv(os.path.join(backend_dir, ".env"))
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -46,7 +53,7 @@ async def upload_guidelines(
     """Uploads rules guidelines (like INCOSE, ASPICE) in JSON format."""
     try:
         content = await file.read()
-        parsed_json = json.loads(content.decode("utf-8"))
+        parsed_json = json.loads(content.decode("utf-8-sig"))
         guideline_id = str(uuid.uuid4())
         save_guidelines(guideline_id, name, parsed_json)
         return {"status": "success", "id": guideline_id, "name": name}
@@ -60,7 +67,11 @@ async def get_guidelines():
 
 @app.post("/api/rag/train")
 async def train_rag(
-    file: UploadFile = File(...)
+    file: UploadFile = File(...),
+    collection_name: str = Form("requalitrace_guidelines"),
+    collection_mode: str = Form("create"),
+    start_page: str = Form(None),
+    end_page: str = Form(None)
 ):
     """
     Progressively processes and chunks a guideline file,
@@ -69,18 +80,42 @@ async def train_rag(
     filename = file.filename
     content = await file.read()
     
+    s_page = int(start_page) if start_page and start_page.strip().isdigit() else None
+    e_page = int(end_page) if end_page and end_page.strip().isdigit() else None
+    
     async def sse_generator():
-        # run generator in separate thread to prevent blocking the async loop
-        loop = asyncio.get_event_loop()
-        def run_stream():
-            return list(train_document_stream(content, filename))
-        
-        # We can yield progressively
-        for state in train_document_stream(content, filename):
+        for state in train_document_stream(
+            content, 
+            filename, 
+            collection_name=collection_name,
+            collection_mode=collection_mode,
+            start_page=s_page,
+            end_page=e_page
+        ):
             yield f"data: {json.dumps(state)}\n\n"
             await asyncio.sleep(0.01) # Yield thread
             
     return StreamingResponse(sse_generator(), media_type="text/event-stream")
+
+@app.post("/api/rag/inspect-pdf")
+async def inspect_pdf(file: UploadFile = File(...)):
+    """Inspects an uploaded PDF and returns its page count."""
+    try:
+        content = await file.read()
+        try:
+            import fitz
+        except ImportError:
+            import pymupdf as fitz
+        doc = fitz.open(stream=content, filetype="pdf")
+        return {"pages": len(doc)}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to inspect PDF: {str(e)}")
+
+@app.get("/api/rag/collections")
+async def get_rag_collections():
+    """Lists all active RAG vector database collections."""
+    from backend.rag_service import rag_engine
+    return rag_engine.get_collections()
 
 @app.get("/api/rag/metrics")
 async def get_rag_metrics():
@@ -88,18 +123,20 @@ async def get_rag_metrics():
     return get_chunking_metrics()
 
 @app.get("/api/rag/search")
-async def search_rag(query: str, limit: int = 5):
+async def search_rag(query: str, limit: int = 5, collection_name: str = "requalitrace_guidelines"):
     """Search endpoint to manually evaluate chunking and relevance retrieval."""
-    return search_guideline_chunks(query, limit)
+    return search_guideline_chunks(query, limit, collection_name)
 
 @app.post("/api/analysis/start")
 async def start_analysis(
     run_type: str = Form(...), # 'quality', 'traceability', 'combined'
     guideline_id: str = Form(None),
     use_rag: str = Form("false"),
-    model_name: str = Form("meta/llama-3.1-70b-instruct"),
+    model_name: str = Form("nvidia/llama-3.3-nemotron-super-49b-v1.5"),
     swe1_file: UploadFile = File(None),
-    swe2_file: UploadFile = File(None)
+    swe2_file: UploadFile = File(None),
+    correct_quality: str = Form("false"),
+    correct_trace: str = Form("false")
 ):
     """Spawns an async row-by-row requirements analysis or traceability evaluation run."""
     run_id = str(uuid.uuid4())
@@ -111,6 +148,8 @@ async def start_analysis(
     swe2_filename = swe2_file.filename if swe2_file else None
     
     use_rag_bool = use_rag.lower() == "true"
+    correct_quality_bool = correct_quality.lower() == "true"
+    correct_trace_bool = correct_trace.lower() == "true"
     
     # Run the job in the background
     asyncio.create_task(
@@ -123,7 +162,9 @@ async def start_analysis(
             swe2_filename=swe2_filename,
             guideline_id=guideline_id,
             use_rag=use_rag_bool,
-            model_name=model_name
+            model_name=model_name,
+            correct_quality=correct_quality_bool,
+            correct_trace=correct_trace_bool
         )
     )
     

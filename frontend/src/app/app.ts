@@ -45,21 +45,21 @@ import { ApiService } from './services/api.service';
     <!-- Main Workspace -->
     <main class="container">
       <app-dashboard 
-        *ngIf="activeTab === 'dashboard'"
+        [hidden]="activeTab !== 'dashboard'"
         (viewRun)="onViewHistoryRun($event)">
       </app-dashboard>
       
       <app-requirements 
         #requirementsComp
-        *ngIf="activeTab === 'analysis'">
+        [hidden]="activeTab !== 'analysis'">
       </app-requirements>
       
       <app-rag-config 
-        *ngIf="activeTab === 'rag'">
+        [hidden]="activeTab !== 'rag'">
       </app-rag-config>
 
       <!-- Guidelines Upload Standards Setup Tab -->
-      <div *ngIf="activeTab === 'settings'" class="card" style="max-width: 600px; margin: 0 auto;">
+      <div [hidden]="activeTab !== 'settings'" class="card" style="max-width: 600px; margin: 0 auto;">
         <div class="card-title">🔧 Upload Automotive Standards Guidelines</div>
         <p class="section-desc" style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 20px;">
           Configure strict standard documents in JSON format (e.g. INCOSE rules list, ASPICE guidelines) to enable validation.

@@ -93,6 +93,20 @@ def get_guideline_content(guideline_id: str):
     conn.close()
     return json.loads(row["content"]) if row else None
 
+def get_guideline_details(guideline_id: str):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, name, content FROM guidelines WHERE id = ?", (guideline_id,))
+    row = cursor.fetchone()
+    conn.close()
+    if row:
+        return {
+            "id": row["id"],
+            "name": row["name"],
+            "content": json.loads(row["content"])
+        }
+    return None
+
 def save_chunk_log(doc_name: str, chunk_index: int, text: str, tokens: int, qdrant_id: str):
     conn = get_connection()
     cursor = conn.cursor()
@@ -100,6 +114,13 @@ def save_chunk_log(doc_name: str, chunk_index: int, text: str, tokens: int, qdra
         "INSERT INTO chunks (doc_name, chunk_index, chunk_text, token_count, qdrant_id) VALUES (?, ?, ?, ?, ?)",
         (doc_name, chunk_index, text, tokens, qdrant_id)
     )
+    conn.commit()
+    conn.close()
+
+def clear_chunks_for_doc(doc_name: str):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM chunks WHERE doc_name = ?", (doc_name,))
     conn.commit()
     conn.close()
 

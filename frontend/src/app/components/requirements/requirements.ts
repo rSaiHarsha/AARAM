@@ -69,10 +69,15 @@ import { ApiService } from '../../services/api.service';
             <!-- Guidelines File Selector if strict is chosen -->
             <div class="form-group" *ngIf="!useRag" style="margin-top: 12px;">
               <label class="form-label">Strict Guidelines Reference</label>
-              <select [(ngModel)]="selectedGuidelineId">
-                <option [value]="null">-- Select Uploaded Guidelines File --</option>
-                <option *ngFor="let g of guidelines" [value]="g.id">{{ g.name }}</option>
-              </select>
+              <div class="guidelines-checkbox-list" style="max-height: 150px; overflow-y: auto; border: 1px solid var(--border-color); padding: 8px; border-radius: 4px; background: #fff; display: flex; flex-direction: column; gap: 6px;">
+                <div *ngFor="let g of guidelines" style="display: flex; align-items: center; gap: 8px;">
+                  <input type="checkbox" [id]="'guideline_' + g.id" [checked]="isSelectedGuideline(g.id)" (change)="toggleGuideline(g.id)">
+                  <label [for]="'guideline_' + g.id" style="cursor: pointer; font-size: 0.85rem; user-select: none;">{{ g.name }}</label>
+                </div>
+                <div *ngIf="guidelines.length === 0" style="color: var(--text-secondary); font-size: 0.85rem;">
+                  No guidelines uploaded yet.
+                </div>
+              </div>
             </div>
 
             <!-- Model selectors -->
@@ -86,8 +91,7 @@ import { ApiService } from '../../services/api.service';
               <div class="form-group">
                 <label class="form-label">Analysis Model</label>
                 <select [(ngModel)]="selectedAnalysisModel">
-                  <option value="meta/llama-3.1-70b-instruct">Llama 3.1 70B Instruct</option>
-                  <option value="meta/llama-3.1-8b-instruct">Llama 3.1 8B Instruct</option>
+                  <option value="nvidia/llama-3.3-nemotron-super-49b-v1.5">Llama 3.3 Nemotron 49B (NVIDIA)</option>
                 </select>
               </div>
             </div>
@@ -187,7 +191,7 @@ import { ApiService } from '../../services/api.service';
                 <td style="font-weight: 500; font-family: monospace;">{{ row.failed_rule || 'N/A' }}</td>
                 <td style="color: var(--text-secondary); font-size: 0.8rem;">{{ row.rationale }}</td>
                 <td style="font-weight: 500; color: #1e293b; background-color: #fafafa; border-left: 3px solid #cbd5e1; padding-left: 10px;">
-                  {{ row.corrected_req }}
+                  {{ row.corrected_req || '-' }}
                 </td>
               </tr>
             </tbody>
@@ -327,10 +331,10 @@ export class RequirementsComponent implements OnInit, OnDestroy {
 
   useRag: boolean = true;
   guidelines: any[] = [];
-  selectedGuidelineId: string | null = null;
+  selectedGuidelineIds: string[] = [];
   
   selectedEmbedModel = 'nvidia/embeddings-nv-embed-qa-4';
-  selectedAnalysisModel = 'meta/llama-3.1-70b-instruct';
+  selectedAnalysisModel = 'nvidia/llama-3.3-nemotron-super-49b-v1.5';
 
   isRunning = false;
   isPaused = false;
@@ -357,6 +361,19 @@ export class RequirementsComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.stopPolling();
+  }
+
+  isSelectedGuideline(id: string): boolean {
+    return this.selectedGuidelineIds.includes(id);
+  }
+
+  toggleGuideline(id: string) {
+    const idx = this.selectedGuidelineIds.indexOf(id);
+    if (idx > -1) {
+      this.selectedGuidelineIds.splice(idx, 1);
+    } else {
+      this.selectedGuidelineIds.push(id);
+    }
   }
 
   loadGuidelines() {
@@ -403,11 +420,13 @@ export class RequirementsComponent implements OnInit, OnDestroy {
 
     this.apiService.startAnalysis(
       runType,
-      this.selectedGuidelineId,
+      this.selectedGuidelineIds.join(',') || null,
       this.useRag,
       this.selectedAnalysisModel,
       this.swe1File || undefined,
-      this.swe2File || undefined
+      this.swe2File || undefined,
+      this.actions.correct,
+      this.actions.correctTrace
     ).subscribe({
       next: (res) => {
         this.activeRunId = res.run_id;
