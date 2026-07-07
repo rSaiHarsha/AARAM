@@ -1,9 +1,9 @@
 {
-  "name": "frontend",
+  "name": "aaram-frontend",
   "version": "0.0.0",
-   "scripts": {
+  "scripts": {
     "ng": "ng",
-    "start": "npx serve -s dist/frontend/browser -l $PORT",
+    "start": "node start.js",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"
@@ -28,7 +28,6 @@
     "typescript": "~6.0.2"
   },
   "engines": {
-  "node": ">=24.15.0 <25.0.0"
+    "node": ">=24.15.0 <25.0.0"
   }
-  
 }

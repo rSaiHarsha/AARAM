@@ -13,6 +13,10 @@ private baseUrl = window.location.hostname === 'localhost'
   
   constructor(private http: HttpClient) {}
 
+  getBaseUrl(): string {
+    return this.baseUrl;
+  }
+
   // Guidelines Endpoints
   uploadGuideline(name: string, file: File): Observable<any> {
     const formData = new FormData();
@@ -30,7 +34,7 @@ private baseUrl = window.location.hostname === 'localhost'
     return this.http.get(`${this.baseUrl}/api/rag/metrics`);
   }
 
-  searchRag(query: string, limit: number = 5, collectionName: string = 'requalitrace_guidelines'): Observable<any[]> {
+  searchRag(query: string, limit: number = 5, collectionName: string = 'aaram_guidelines'): Observable<any[]> {
     return this.http.get<any[]>(`${this.baseUrl}/api/rag/search`, {
       params: { 
         query, 
@@ -52,7 +56,7 @@ private baseUrl = window.location.hostname === 'localhost'
 
   trainRAG(
     file: File, 
-    collectionName: string = 'requalitrace_guidelines', 
+    collectionName: string = 'aaram_guidelines', 
     collectionMode: string = 'create',
     startPage?: number,
     endPage?: number
@@ -175,5 +179,9 @@ private baseUrl = window.location.hostname === 'localhost'
     const formData = new FormData();
     formData.append('minimized', minimized ? 'true' : 'false');
     return this.http.post(`${this.baseUrl}/api/analysis/${runId}/minimize`, formData);
+  }
+
+  deleteRun(runId: string): Observable<any> {
+    return this.http.delete(`${this.baseUrl}/api/analysis/${runId}`);
   }
 }

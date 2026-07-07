@@ -137,7 +137,7 @@ import { ApiService } from '../../services/api.service';
             <label class="form-label">Select Target Collection:</label>
             <select [(ngModel)]="selectedCollection" style="width: 100%;">
               <option *ngFor="let col of collections" [value]="col">{{ col }}</option>
-              <option *ngIf="collections.length === 0" value="requalitrace_guidelines">requalitrace_guidelines (Default)</option>
+              <option *ngIf="collections.length === 0" value="aaram_guidelines">aaram_guidelines (Default)</option>
             </select>
           </div>
           
@@ -431,13 +431,13 @@ export class RAGConfigComponent implements OnInit {
   showConfigDialog = false;
   collections: string[] = [];
   collectionMode: 'add' | 'create' = 'add';
-  selectedCollection: string = 'requalitrace_guidelines';
+  selectedCollection: string = 'aaram_guidelines';
   newCollectionName: string = '';
   isPdf = false;
   startPage = 1;
   endPage = 1;
   totalPages = 0;
-  searchCollection = 'requalitrace_guidelines';
+  searchCollection = 'aaram_guidelines';
 
   constructor(private apiService: ApiService) {}
 
@@ -484,15 +484,18 @@ export class RAGConfigComponent implements OnInit {
     this.apiService.getRagCollections().subscribe({
       next: (cols) => {
         this.collections = cols;
-        if (cols.includes('requalitrace_guidelines')) {
+        if (cols.includes('aaram_guidelines')) {
+          this.selectedCollection = 'aaram_guidelines';
+          this.searchCollection = 'aaram_guidelines';
+        } else if (cols.includes('requalitrace_guidelines')) {
           this.selectedCollection = 'requalitrace_guidelines';
           this.searchCollection = 'requalitrace_guidelines';
         } else if (cols.length > 0) {
           this.selectedCollection = cols[0];
           this.searchCollection = cols[0];
         } else {
-          this.selectedCollection = 'requalitrace_guidelines';
-          this.searchCollection = 'requalitrace_guidelines';
+          this.selectedCollection = 'aaram_guidelines';
+          this.searchCollection = 'aaram_guidelines';
         }
       }
     });
